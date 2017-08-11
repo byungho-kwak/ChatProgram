@@ -208,9 +208,9 @@ public class Client extends JFrame implements ActionListener{
 			// 쪽지 보내기 다이알로그 생성
 			String note = JOptionPane.showInputDialog("보낼메시지");
 			
-			// 쪽지 프로토콜 : Note/User1@안녕하세요~
+			// 쪽지 프로토콜 : Note/User1/안녕하세요~
 			if(note!=null)
-				send_message("Note/"+user+"@"+note);
+				send_message("Note/"+user+"/"+note);
 			
 		}
 		else if(e.getSource() == joinroom_btn)
@@ -257,8 +257,6 @@ public class Client extends JFrame implements ActionListener{
 			}
 		});
 		th.start();
-		
-
 	}
 	
 	// 서버로부터 들어오는 모든 메시지
@@ -279,14 +277,11 @@ public class Client extends JFrame implements ActionListener{
 				User_List.add(message);
 		}
 		else if(protocol.equals("Note")) {
-			st = new StringTokenizer(message, "@");
-			String user = st.nextToken();
 			String note = st.nextToken();
-			
-			System.out.println(user+"로 부터 온 쪽지: "+note);
+			System.out.println(message+"로 부터 온 쪽지: "+note);
 			
 			JOptionPane.showMessageDialog
-			(null, note, user+"님으로 부터 쪽지", JOptionPane.CLOSED_OPTION);
+			(null, note, message+"님으로 부터 쪽지", JOptionPane.CLOSED_OPTION);
 		}
 	
 	}

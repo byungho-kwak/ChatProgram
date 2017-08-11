@@ -201,10 +201,7 @@ public class Server extends JFrame implements ActionListener{
 				try {
 					String msg = dis.readUTF();
 					textArea.append(NicName+"사용자로부터 들어온 메시지 :"+msg+"\n");
-					
 					in_message(msg);
-					
-					
 				} catch (IOException e) {
 				}
 			}
@@ -215,23 +212,18 @@ public class Server extends JFrame implements ActionListener{
 			
 			st = new StringTokenizer(str, "/");
 			String protocol = st.nextToken();
-			String message = st.nextToken();
-			
 			
 			// 쪽지 프로토콜/사용자/내용 토크나이저 통한 파싱 후 해당 user에게 전달
 			if(protocol.equals("Note")) {
-				st = new StringTokenizer(message, "@");
 				String user = st.nextToken();
 				String note = st.nextToken();
 				
 				System.out.println(user+"님이 보낼 내용: "+note);
-				
-				UserInfo u;
-				
+
 				for(int i=0; i<user_vc.size(); i++) {
-					u = (UserInfo)user_vc.elementAt(i);
+					UserInfo u = (UserInfo)user_vc.elementAt(i);
 					if(u.NicName.equals(user)) {
-						send_message("Note/"+NicName+"@"+note);
+						send_message("Note/"+NicName+"/"+note);
 						break;
 					}
 				}
