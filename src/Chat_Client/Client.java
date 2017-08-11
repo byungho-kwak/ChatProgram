@@ -16,6 +16,7 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -201,9 +202,16 @@ public class Client extends JFrame implements ActionListener{
 		}
 		else if(e.getSource() == notesend_btn) {
 			System.out.println("쪽지 보내기 버튼 클릭");
+			// 리스트에서 선택한 값 가져오기
 			String user = (String)user_list.getSelectedValue();
 			
 			// 쪽지 보내기 다이알로그 생성
+			String note = JOptionPane.showInputDialog("보낼메시지");
+			
+			// 쪽지 프로토콜 : Note/User1@안녕하세요~
+			if(note!=null)
+				send_message("Note/"+user+"@"+note);
+			
 		}
 		else if(e.getSource() == joinroom_btn)
 			System.out.println("방 참여 버튼 클릭");
@@ -229,7 +237,6 @@ public class Client extends JFrame implements ActionListener{
 		
 		// 처음 접속 시 ID 받아서 서버로 전달 send_message 사용
 		send_message(id);
-		
 		User_List.add(id); // Vector에 id 저장
 		
 		// 입력(서버로부터 메시지 수신)을 위한 스레드 생성(익명 클래스)
@@ -251,7 +258,6 @@ public class Client extends JFrame implements ActionListener{
 		});
 		th.start();
 		
-		//User 리스트에 사용자 추가
 
 	}
 	
@@ -266,12 +272,21 @@ public class Client extends JFrame implements ActionListener{
 			User_List.add(message);
 			user_list.setListData(User_List);
 		}
-		
-		if(protocol.equals("ExistingUser")) {
+		else if(protocol.equals("ExistingUser")) {
 			if(message.equals("End"))
 				user_list.setListData(User_List);
 			else
 				User_List.add(message);
+		}
+		else if(protocol.equals("Note")) {
+			st = new StringTokenizer(message, "@");
+			String user = st.nextToken();
+			String note = st.nextToken();
+			
+			System.out.println(user+"로 부터 온 쪽지: "+note);
+			
+			JOptionPane.showMessageDialog
+			(null, note, user+"님으로 부터 쪽지", JOptionPane.CLOSED_OPTION);
 		}
 	
 	}

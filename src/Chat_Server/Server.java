@@ -145,6 +145,10 @@ public class Server extends JFrame implements ActionListener{
 			System.out.println("서비스 중지 버튼 클릭");
 	}	// 액션 이벤트 끝
 	
+	
+	/*---------------------------------------------------------------*/
+	
+	// 접속 유저별 객체 생성 및 정보 Vector 내 저장
 	// 사용자 각각의 스레드를 만들어줘야 하기 때문에, 스레드를 상속받은 내부 클래스로 만들어준다. 
 	class UserInfo extends Thread {
 		
@@ -209,17 +213,35 @@ public class Server extends JFrame implements ActionListener{
 		//서버로 들어오는 메시지 처리
 		private void in_message(String str) {
 			
-			// 쪽지로 전송된 프로토콜/사용자/내용 토크나이저 통한 파싱
+			st = new StringTokenizer(str, "/");
+			String protocol = st.nextToken();
+			String message = st.nextToken();
 			
+			
+			// 쪽지 프로토콜/사용자/내용 토크나이저 통한 파싱 후 해당 user에게 전달
+			if(protocol.equals("Note")) {
+				st = new StringTokenizer(message, "@");
+				String user = st.nextToken();
+				String note = st.nextToken();
+				
+				System.out.println(user+"님이 보낼 내용: "+note);
+				
+				UserInfo u;
+				
+				for(int i=0; i<user_vc.size(); i++) {
+					u = (UserInfo)user_vc.elementAt(i);
+					if(u.NicName.equals(user)) {
+						send_message("Note/"+NicName+"@"+note);
+						break;
+					}
+				}
+			}
 		}
 		
 		private void send_message(String str) {
-			
 			try {
 				dos.writeUTF(str);
-			} catch (IOException e) {
-			}
-			
+			} catch (IOException e) {}
 		}
 		
 		// 전체 사용자에게 메시지 전송
