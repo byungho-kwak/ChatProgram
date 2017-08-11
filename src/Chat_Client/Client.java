@@ -61,8 +61,12 @@ public class Client extends JFrame implements ActionListener{
 	// 그 외 변수들
 	Vector User_List = new Vector();
 	Vector Room_List = new Vector();
+	
 	// 서버로 부터 전달되어온 데이터 파싱해서 어떤 데이터인지 확인하기 위한 용도
 	StringTokenizer st;
+	
+	//내가 있는 방 이름
+	private String My_Room;
 	
 	// 생성자 메소드
 	Client() {	
@@ -190,6 +194,7 @@ public class Client extends JFrame implements ActionListener{
 
 	}
 
+	// 리스너를 통한 버튼 클릭 판별 및 해당 기능 작동
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		if(e.getSource() == login_btn) {
@@ -211,18 +216,27 @@ public class Client extends JFrame implements ActionListener{
 			// 쪽지 프로토콜 : Note/User1/안녕하세요~
 			if(note!=null)
 				send_message("Note/"+user+"/"+note);
-			
 		}
-		else if(e.getSource() == joinroom_btn)
+		else if(e.getSource() == joinroom_btn) {
 			System.out.println("방 참여 버튼 클릭");
-		else if(e.getSource() == createroom_btn)
+		}
+		else if(e.getSource() == createroom_btn) {
+			// JOptionPane을 사용한 방만들기 창
+			String msg = JOptionPane.showInputDialog("방 이름 입력");
+			
+			// 서버에게 방생성정보 전달(방생성 프로토콜(CreateRoom/방이름)
+			send_message("CreateRoom/"+msg);
 			System.out.println("방 만들기 버튼 클릭");
+		}
 		else if(e.getSource() == sendmessage_btn) {
-			send_message("임시테스트 입니다");
+			String msg = message_tf.getText().trim();
+			
+			send_message("Chatting/"+My_Room+"/"+msg);
 			System.out.println("채팅 전송 버튼 클릭");
 		}
 	}
 
+	//in/out 스트림 설정 & 접속자 리스트 & read(스레드) 구현
 	private void Connection() {
 		
 		// 서버로의 in/out 스트림 설정
@@ -283,7 +297,29 @@ public class Client extends JFrame implements ActionListener{
 			JOptionPane.showMessageDialog
 			(null, note, message+"님으로 부터 쪽지", JOptionPane.CLOSED_OPTION);
 		}
-	
+		else if(protocol.equals("CreatRoomFail")) {	// 방 만들기 실패
+			JOptionPane.showMessageDialog
+			(null, "해당 방이 존재합니다","알림", JOptionPane.CLOSED_OPTION);
+		}
+		// 방 만들기 성공(CreateRoom/ok) -> showMessageDialog 이용해서 띄워준다
+		else if(protocol.equals("CreateRoom")) {
+			My_Room = message;
+			Room_List.add(message);
+			room_list.setListData(Room_List);
+			
+			JOptionPane.showMessageDialog
+			(null, message+" 채팅방이 열렸습니다","알림", JOptionPane.CLOSED_OPTION);
+		}
+		//NewRoom : 내가 만들지는 않았지만 만들어진 정보 받기 위한 프로토콜(방 리스트업)
+		else if(protocol.equals("NewRoom")) {
+			Room_List.add(message);
+			room_list.setListData(Room_List);
+		}
+		else if(protocol.equals("Chatting")) {
+			String msg = st.nextToken();
+			chat_area.append(message+": "+msg+"\n");
+		}
+		 
 	}
 	
 	// 서버로 메시지 보내는 메소드

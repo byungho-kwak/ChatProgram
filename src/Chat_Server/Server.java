@@ -37,7 +37,10 @@ public class Server extends JFrame implements ActionListener{
 	private int port;
 	private StringTokenizer st;
 	
-	private Vector user_vc = new Vector<>();
+	private Vector user_vc = new Vector();
+	
+	// 생성된 룸 객체들 저장
+	private Vector room_vc = new Vector();
 	
 	Server() {	// 생성자 
 		init();	// 화면 생성 메소드
@@ -145,7 +148,6 @@ public class Server extends JFrame implements ActionListener{
 			System.out.println("서비스 중지 버튼 클릭");
 	}	// 액션 이벤트 끝
 	
-	
 	/*---------------------------------------------------------------*/
 	
 	// 접속 유저별 객체 생성 및 정보 Vector 내 저장
@@ -160,9 +162,13 @@ public class Server extends JFrame implements ActionListener{
 		
 		private Socket user_socket;
 		private String NicName;
+
+		// UserInfo에 넣는 이유 : 어떤 사용자가 방 만들기 신청했는지 알기 위해
+		private boolean RoomCheck;
 		
 		UserInfo(Socket soc) {
 			this.user_socket = soc;
+			this.RoomCheck = true;
 			UserNetWork();
 		}
 		
@@ -212,24 +218,58 @@ public class Server extends JFrame implements ActionListener{
 			
 			st = new StringTokenizer(str, "/");
 			String protocol = st.nextToken();
+			String message = st.nextToken();
 			
 			// 쪽지 프로토콜/사용자/내용 토크나이저 통한 파싱 후 해당 user에게 전달
 			if(protocol.equals("Note")) {
-				String user = st.nextToken();
+			
 				String note = st.nextToken();
-				
-				System.out.println(user+"님이 보낼 내용: "+note);
+				System.out.println(message+"님이 보낼 내용: "+note);
 
 				for(int i=0; i<user_vc.size(); i++) {
 					UserInfo u = (UserInfo)user_vc.elementAt(i);
-					if(u.NicName.equals(user)) {
+					if(u.NicName.equals(message)) {
 						send_message("Note/"+NicName+"/"+note);
 						break;
+					}
+				}
+			} 
+			else if(protocol.equals("CreateRoom")) { // 방 만들기 요청시
+				// 1. 현재 같은 방이 존재하는지 확인 for문 이용
+				for(int i=0; i<room_vc.size(); i++) {
+					RoomInfo r = (RoomInfo)room_vc.elementAt(i);
+					if(r.Room_name.equals(message)) {
+						send_message("CreatRoomFail/ok");
+						RoomCheck = false;
+						break;
+					} 
+				}
+				// 방을 만들 수 있을 경우
+				if(RoomCheck==true) {
+					RoomInfo ri = new RoomInfo(message, this);
+					room_vc.addElement(ri);
+					send_message("CreateRoom/"+message);
+				} 
+				// 방만들기 가능유무 초기화
+				RoomCheck = true;
+			}
+			else if(protocol.equals("Chatting")) {
+				// 같은 room 내 인원들한테 브로드캐스팅
+				// User1: 안녕하세요 형식
+				String msg = st.nextToken(); // 메시지 내용
+				
+				for(int i=0; i<room_vc.size(); i++) {
+					
+					RoomInfo ri = (RoomInfo)room_vc.elementAt(i);
+					
+					if(message.equals(ri.Room_name)) {
+						ri.BroadCast_Room("Chatting/"+NicName+"/"+msg);
 					}
 				}
 			}
 		}
 		
+		//해당 클라이언트(this)에게 메시지 보내기
 		private void send_message(String str) {
 			try {
 				dos.writeUTF(str);
@@ -244,6 +284,29 @@ public class Server extends JFrame implements ActionListener{
 				u.send_message(str);
 			}
 		}
+	}	// UserInfo 클래스 끝
+	
+	// 채팅방 정보 및 채팅내용 전달 클래스
+	class RoomInfo {
+		String Room_name;
+		// Room마다 접속자 vector 관리하기 위함
+		Vector Room_user_vc = new Vector();
+		
+		// 생성자 작성
+		RoomInfo(String str, UserInfo user) {
+			this.Room_name = str;
+			this.Room_user_vc.add(user);
+		}
+		//현재 방에 있는 사람들에게 메시지 전송
+		public void BroadCast_Room(String str) {
+			for(int i=0; i<this.Room_user_vc.size(); i++) {
+				UserInfo u = (UserInfo)this.Room_user_vc.elementAt(i);
+				u.send_message(str);
+			}
+		}
 	}
-
+	
+	
+	
+	
 }
