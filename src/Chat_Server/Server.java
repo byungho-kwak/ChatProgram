@@ -165,10 +165,12 @@ public class Server extends JFrame implements ActionListener{
 
 		// UserInfo에 넣는 이유 : 어떤 사용자가 방 만들기 신청했는지 알기 위해
 		private boolean RoomCheck;
+		private String AttendRoom;
 		
 		UserInfo(Socket soc) {
 			this.user_socket = soc;
 			this.RoomCheck = true;
+			this.AttendRoom = null;
 			UserNetWork();
 		}
 		
@@ -192,7 +194,14 @@ public class Server extends JFrame implements ActionListener{
 					send_message("ExistingUser/"+u.NicName);
 				}
 				//클라이언트에게 vector 모두 다 보내줬음을 알려주기 위한 프로토콜(ExistingUser/End)
-				send_message("ExistingUser/"+"End");
+				send_message("ExistingUser/"+"Update");
+				
+				for(int i=0; i<room_vc.size(); i++) {
+					RoomInfo r = (RoomInfo)room_vc.elementAt(i);
+					send_message("ExistingRoom/"+r.Room_name);
+				}
+				send_message("ExistingRoom/"+"Update");
+				
 				//vector에 자신 등록
 				user_vc.add(this);
 				
@@ -246,9 +255,21 @@ public class Server extends JFrame implements ActionListener{
 				}
 				// 방을 만들 수 있을 경우
 				if(RoomCheck==true) {
-					RoomInfo ri = new RoomInfo(message, this);
-					room_vc.addElement(ri);
-					send_message("CreateRoom/"+message);
+					// 1. 혹시 내가 현재 다른 방에 접속 중이라면 방 나가기
+					if(this.AttendRoom!=null) {
+						for(int j=0; j<room_vc.size(); j++) {
+							RoomInfo leaveUser = (RoomInfo)room_vc.elementAt(j);
+							if(AttendRoom.equals(leaveUser.Room_name)) {
+								leaveUser.LeaveRoom(this);
+							}
+						}
+					}
+					// 방 생성 및 접속
+					RoomInfo r = new RoomInfo(message, this);
+					room_vc.addElement(r);
+					AttendRoom = message;
+					BroadCase("CreateRoom/"+message+"/"+this.NicName);
+				//	send_message("CreateRoom/"+message);
 				} 
 				// 방만들기 가능유무 초기화
 				RoomCheck = true;
@@ -259,14 +280,38 @@ public class Server extends JFrame implements ActionListener{
 				String msg = st.nextToken(); // 메시지 내용
 				
 				for(int i=0; i<room_vc.size(); i++) {
-					
 					RoomInfo ri = (RoomInfo)room_vc.elementAt(i);
-					
 					if(message.equals(ri.Room_name)) {
 						ri.BroadCast_Room("Chatting/"+NicName+"/"+msg);
 					}
 				}
 			}
+			else if(protocol.equals("JoinRoom")) {
+				// 1. 들어가고자 하는 방을 확인하고,
+				for(int i=0; i<room_vc.size(); i++) {
+					RoomInfo r =(RoomInfo)room_vc.elementAt(i); 
+					if(r.Room_name.equals(message)) { // 방을 찾았으면,
+						// 2. 내가 방에 소속되어있는지 확인 후 특정 방에 소속되어 있으면 방 나가고,
+						if(this.AttendRoom!=null) {
+							for(int j=0; j<room_vc.size(); j++) {
+								RoomInfo ri = (RoomInfo)room_vc.elementAt(j);
+								if(AttendRoom.equals(ri.Room_name)) {
+									ri.LeaveRoom(this);
+								}
+							}
+						}
+						// 3. 방으로 접속한다.
+						AttendRoom=message;
+						
+						// 새로운 사용자를 방 사람들에게 알린다.
+						r.BroadCast_Room("Chatting/ /**** "+NicName+"님이 입장하였습니다. ****");
+						r.JoinRoom(this);
+						send_message("JoinRoom/"+message);
+						break;
+					}
+				}
+			}
+			
 		}
 		
 		//해당 클라이언트(this)에게 메시지 보내기
@@ -304,9 +349,22 @@ public class Server extends JFrame implements ActionListener{
 				u.send_message(str);
 			}
 		}
+		
+		public void JoinRoom(UserInfo u) {
+			Room_user_vc.add(u);
+			System.out.println(Room_name+"으로"+u.NicName+"님 입장");
+		}
+		public void LeaveRoom(UserInfo u) {
+			for(int i=0; i<Room_user_vc.size(); i++) {
+				UserInfo user = (UserInfo)Room_user_vc.elementAt(i);
+				if(user.NicName.equals(u.NicName)) {
+					Room_user_vc.remove(i);
+					BroadCast_Room("Chatting/ /**** "+u.NicName+"님이 퇴장하였습니다. ****");
+					System.out.println(Room_name+"에서"+u.NicName+"님 퇴장");
+					break;
+				}
+			}
+		}
 	}
-	
-	
-	
 	
 }

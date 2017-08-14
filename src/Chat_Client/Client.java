@@ -218,6 +218,10 @@ public class Client extends JFrame implements ActionListener{
 				send_message("Note/"+user+"/"+note);
 		}
 		else if(e.getSource() == joinroom_btn) {
+			// protoco : "JoinRoom/JoinRoom"
+			String roomName=(String)room_list.getSelectedValue();
+			send_message("JoinRoom/"+roomName);
+			
 			System.out.println("방 참여 버튼 클릭");
 		}
 		else if(e.getSource() == createroom_btn) {
@@ -232,7 +236,7 @@ public class Client extends JFrame implements ActionListener{
 			String msg = message_tf.getText().trim();
 			
 			send_message("Chatting/"+My_Room+"/"+msg);
-			System.out.println("채팅 전송 버튼 클릭");
+			System.out.println(My_Room+"에서"+id+"가 채팅 전송 버튼 클릭");
 		}
 	}
 
@@ -285,10 +289,16 @@ public class Client extends JFrame implements ActionListener{
 			user_list.setListData(User_List);
 		}
 		else if(protocol.equals("ExistingUser")) {
-			if(message.equals("End"))
+			if(message.equals("Update"))
 				user_list.setListData(User_List);
 			else
 				User_List.add(message);
+		}
+		else if(protocol.equals("ExistingRoom")) {
+			if(message.equals("Update"))
+				room_list.setListData(Room_List);
+			else
+				Room_List.add(message);
 		}
 		else if(protocol.equals("Note")) {
 			String note = st.nextToken();
@@ -303,12 +313,16 @@ public class Client extends JFrame implements ActionListener{
 		}
 		// 방 만들기 성공(CreateRoom/ok) -> showMessageDialog 이용해서 띄워준다
 		else if(protocol.equals("CreateRoom")) {
-			My_Room = message;
+			
+			String RoomCreater = st.nextToken();
+			if(RoomCreater.equals(this.id))
+				My_Room = message;
+			
 			Room_List.add(message);
 			room_list.setListData(Room_List);
 			
-			JOptionPane.showMessageDialog
-			(null, message+" 채팅방이 열렸습니다","알림", JOptionPane.CLOSED_OPTION);
+//			JOptionPane.showMessageDialog
+//			(null, message+" 채팅방이 열렸습니다","알림", JOptionPane.CLOSED_OPTION);
 		}
 		//NewRoom : 내가 만들지는 않았지만 만들어진 정보 받기 위한 프로토콜(방 리스트업)
 		else if(protocol.equals("NewRoom")) {
@@ -318,6 +332,11 @@ public class Client extends JFrame implements ActionListener{
 		else if(protocol.equals("Chatting")) {
 			String msg = st.nextToken();
 			chat_area.append(message+": "+msg+"\n");
+		}
+		else if(protocol.equals("JoinRoom")) {
+			My_Room=message;
+			JOptionPane.showMessageDialog
+			(null, message+"에 접속하였습니다!","알림", JOptionPane.CLOSED_OPTION);
 		}
 		 
 	}
