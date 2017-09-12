@@ -1,7 +1,5 @@
 package Chat_Server;
 
-import java.awt.TextArea;
-import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.DataInputStream;
@@ -17,6 +15,7 @@ import java.util.Vector;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -37,6 +36,7 @@ public class Server extends JFrame implements ActionListener{
 	private int port;
 	private StringTokenizer st;
 	
+	// 생성된 유저 객체들 저장	
 	private Vector user_vc = new Vector();
 	
 	// 생성된 룸 객체들 저장
@@ -91,6 +91,8 @@ public class Server extends JFrame implements ActionListener{
 		try {
 			server_socket = new ServerSocket(port);
 		} catch (IOException e) {
+			JOptionPane.showMessageDialog
+			(null, "해당 포트는 사용 중 입니다..","알림", JOptionPane.CLOSED_OPTION);
 			e.printStackTrace();
 		}
 		
@@ -98,6 +100,7 @@ public class Server extends JFrame implements ActionListener{
 		if(server_socket != null) {
 			Connection();
 		}
+
 	}
 	
 	private void Connection() {
@@ -107,6 +110,7 @@ public class Server extends JFrame implements ActionListener{
 		
 		// 무한루프틑 통한 다중 사용자 받기(스레드 생성)
 	
+
 		Thread th = new Thread(new Runnable() {
 			@Override
 			public void run() {	// 스레드에서 처리할 일을 기재
@@ -123,12 +127,14 @@ public class Server extends JFrame implements ActionListener{
 						
 					} catch (IOException e) {
 						e.printStackTrace();
+						JOptionPane.showMessageDialog
+						(null, "accept 에러 발생","알림", JOptionPane.CLOSED_OPTION);
+						break;
 					}
 				}
 			}
 		});
-		
-		th.start();
+			th.start();
 	}
 	
 	public static void main(String[] args) {
@@ -144,8 +150,10 @@ public class Server extends JFrame implements ActionListener{
 			Server_start();	// 소켓생성 및 사용자 접속 대기
 		}
 		
-		if(e.getSource() == stop_btn)
+		if(e.getSource() == stop_btn) {
 			System.out.println("서비스 중지 버튼 클릭");
+			
+		}
 	}	// 액션 이벤트 끝
 	
 	/*---------------------------------------------------------------*/
@@ -174,6 +182,7 @@ public class Server extends JFrame implements ActionListener{
 			UserNetWork();
 		}
 		
+		// 신규 user 객체에 대한 stream 설정
 		private void UserNetWork() {
 			try {
 				is = user_socket.getInputStream();
@@ -186,15 +195,18 @@ public class Server extends JFrame implements ActionListener{
 				
 				System.out.println("현재 접속된 사용자 수: "+user_vc.size());
 				
-				// 새로 추가된 user에게 기존 user 모두 전송 후 -프로토콜 : (Existing/User1~N)
+				// 기존 유저에게 새로 접속된 유저 알리기
 				BroadCase("NewUser/"+NicName);
-				
+				// 새로 추가된 user에게 기존 user 모두 전송 후(Existing/User1~N), 전송 완료 프로토콜 전달(send_message("ExistingUser/"+"Update"))
 				for(int i=0; i<user_vc.size(); i++) {
 					UserInfo u = (UserInfo)user_vc.elementAt(i);
-					send_message("ExistingUser/"+u.NicName);
+					this.send_message("ExistingUser/"+u.NicName);
 				}
 				//클라이언트에게 vector 모두 다 보내줬음을 알려주기 위한 프로토콜(ExistingUser/End)
 				send_message("ExistingUser/"+"Update");
+				
+				//vector에 자신 등록
+				user_vc.add(this);
 				
 				for(int i=0; i<room_vc.size(); i++) {
 					RoomInfo r = (RoomInfo)room_vc.elementAt(i);
@@ -202,12 +214,18 @@ public class Server extends JFrame implements ActionListener{
 				}
 				send_message("ExistingRoom/"+"Update");
 				
-				//vector에 자신 등록
-				user_vc.add(this);
-				
-				
 			} catch (IOException e) {
-			
+				try {
+					is.close();
+					os.close();
+					dis.close();
+					dos.close();
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				JOptionPane.showMessageDialog
+				(null, "Server쪽 User Stream 설정 에러","알림", JOptionPane.CLOSED_OPTION);
 			}
 		}
 		
@@ -218,6 +236,31 @@ public class Server extends JFrame implements ActionListener{
 					textArea.append(NicName+"사용자로부터 들어온 메시지 :"+msg+"\n");
 					in_message(msg);
 				} catch (IOException e) {
+					
+					// this 사용자가 접속이 끊어지면 dis.readUTF에서 오류가 발생한다.\
+					// 따라서 아래 예외처리로 들어오게 됨
+					e.printStackTrace();
+					textArea.append(NicName+" : 사용자 접속 끊어짐\n");
+					
+					try {
+						dis.close();
+						dos.close();
+						user_socket.close();
+						user_vc.remove(this);
+						BroadCase("User_out/"+NicName);
+						if(AttendRoom!=null) {
+							for(int i=0; i<room_vc.size(); i++) {
+								RoomInfo r = (RoomInfo)room_vc.elementAt(i);
+								if(r.Room_name.equals(AttendRoom)&&r.Room_user_vc.size()==1) {
+									room_vc.remove(i);
+									BroadCase("Room_delete/"+AttendRoom);
+									break;
+								}
+							}
+						}
+						
+					} catch (IOException e1) {}
+					break;
 				}
 			}
 		} // run 메소드 끝
@@ -265,11 +308,11 @@ public class Server extends JFrame implements ActionListener{
 						}
 					}
 					// 방 생성 및 접속
-					RoomInfo r = new RoomInfo(message, this);
+					RoomInfo r = new RoomInfo(message, this); 
 					room_vc.addElement(r);
 					AttendRoom = message;
 					BroadCase("CreateRoom/"+message+"/"+this.NicName);
-				//	send_message("CreateRoom/"+message);
+					this.send_message("CreateRoomSuccess/"+message);
 				} 
 				// 방만들기 가능유무 초기화
 				RoomCheck = true;

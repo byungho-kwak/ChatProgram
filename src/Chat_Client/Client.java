@@ -1,5 +1,6 @@
 package Chat_Client;
 
+import java.awt.TextArea;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.DataInputStream;
@@ -9,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
@@ -129,7 +131,7 @@ public class Client extends JFrame implements ActionListener{
 		sendmessage_btn.setBounds(550, 467, 97, 23);
 		main_pane.add(sendmessage_btn);
 		
-		this.setVisible(true);
+		this.setVisible(false);
 	}
 	private void Login_init() {
 	
@@ -184,7 +186,12 @@ public class Client extends JFrame implements ActionListener{
 			if(socket!=null) {
 				Connection();
 			}
+		} catch (UnknownHostException e) {
+			JOptionPane.showMessageDialog
+			(null, "연결 실패", "알림", JOptionPane.CLOSED_OPTION);
 		} catch (IOException e) {
+			JOptionPane.showMessageDialog
+			(null, "연결 실패", "알림", JOptionPane.CLOSED_OPTION);
 			e.printStackTrace();
 		}
 	}	
@@ -198,10 +205,24 @@ public class Client extends JFrame implements ActionListener{
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		if(e.getSource() == login_btn) {
+			if(ip_tf.getText().length()==0) {
+				JOptionPane.showMessageDialog
+				(null, "IP를 입력해주세요","알림", JOptionPane.CLOSED_OPTION);
+				ip_tf.requestFocus();
+			} else if(port_tf.getText().length()==0){
+				JOptionPane.showMessageDialog
+				(null, "Port를 입력해주세요","알림", JOptionPane.CLOSED_OPTION);
+				port_tf.requestFocus();
+			} else if(id_tf.getText().length()==0){
+				JOptionPane.showMessageDialog
+				(null, "ID를 입력해주세요","알림", JOptionPane.CLOSED_OPTION);
+				id_tf.requestFocus();
+			}
 			
 			ip = ip_tf.getText().trim();	// trim : 맨 뒤에 빈 공간이 생겼을 때 앞으로 댕겨주는 메소드
 			port = Integer.parseInt(port_tf.getText().trim());	// int형 형변환
 			id = id_tf.getText().trim();  // ID 값 저장
+			
 			System.out.println("로그인버튼 클릭");		
 			Network();	
 		}
@@ -257,6 +278,10 @@ public class Client extends JFrame implements ActionListener{
 		send_message(id);
 		User_List.add(id); // Vector에 id 저장
 		
+		Login_GUI.setVisible(false);
+		this.setVisible(true);
+		
+		
 		// 입력(서버로부터 메시지 수신)을 위한 스레드 생성(익명 클래스)
 		Thread th = new Thread(new Runnable() {
 			
@@ -270,6 +295,17 @@ public class Client extends JFrame implements ActionListener{
 						in_message(msg);
 						
 					} catch (IOException e) {
+						try {
+							is.close();
+							os.close();
+							dis.close();
+							dos.close();
+						} catch (IOException e1) {
+							e1.printStackTrace();
+						}
+						JOptionPane.showMessageDialog
+						(null, "서버와 접속이 끊어졌습니다.","알림", JOptionPane.CLOSED_OPTION);
+						break;
 					}
 				}
 			}
@@ -321,8 +357,9 @@ public class Client extends JFrame implements ActionListener{
 			Room_List.add(message);
 			room_list.setListData(Room_List);
 			
-//			JOptionPane.showMessageDialog
-//			(null, message+" 채팅방이 열렸습니다","알림", JOptionPane.CLOSED_OPTION);
+		}
+		else if(protocol.equals("CreateRoomSuccess")) {
+			chat_area.append(message+" 채팅방이 생성되었습니다.\n");
 		}
 		//NewRoom : 내가 만들지는 않았지만 만들어진 정보 받기 위한 프로토콜(방 리스트업)
 		else if(protocol.equals("NewRoom")) {
@@ -337,6 +374,15 @@ public class Client extends JFrame implements ActionListener{
 			My_Room=message;
 			JOptionPane.showMessageDialog
 			(null, message+"에 접속하였습니다!","알림", JOptionPane.CLOSED_OPTION);
+		}
+		else if(protocol.equals("User_out")) {
+			User_List.remove(message);
+			user_list.setListData(User_List);
+		}
+		else if(protocol.equals("Room_delete")) {
+			System.out.println("방 삭제된 것 갱신 : "+message);
+			Room_List.remove(message);
+			room_list.setListData(Room_List);
 		}
 		 
 	}
